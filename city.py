@@ -47,7 +47,7 @@ class CityRule:
 
 class CellState:
     class State(str):
-        EMPTY = "◻️"
+        EMPTY = "x️"
         RESIDENTIAL = "🏠"
         COMMERCIAL = "🛍️"
         INDUSTRIAL = "🏭"
@@ -392,11 +392,9 @@ class CitySimulation:
 
     def count_living_neighbors(self, x, y):
         count = 0
-        for i in range(-1, 2):
-            for j in range(-1, 2):
-                row = (x + i + self.size) % self.size
-                col = (y + j + self.size) % self.size
-                if (i, j) != (0, 0) and self.grid[row][col].is_living:
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.grid[i][j].is_living():
                     count += 1
         return count
 
@@ -410,12 +408,9 @@ class CitySimulation:
 
     def count_industrial_neighbors(self, x, y):
         count = 0
-        for i in range(-1, 2):
-            for j in range(-1, 2):
-                row = (x + i + self.size) % self.size
-                col = (y + j + self.size) % self.size
-                if (i, j) != (0, 0) and self.grid[row][col].state == CellState.State.INDUSTRIAL:
-                    count += 1
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.grid[i][j].state ==
         return count
 
     def count_residential_cells_state(self):
@@ -554,6 +549,7 @@ def main():
     time_ms = int(input("Enter the time between generations (in milliseconds): "))
 
     city = CitySimulation(size, config, True)
+    agent.city.infracstr = action.infractef
     for generation in range(generations):
         print(f"Config {config}:")
         print(f"Generation {generation + 1}:")
