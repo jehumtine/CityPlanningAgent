@@ -131,7 +131,7 @@ class CitySimulation:
         self.config = config
         self.city_state = 0.0
         self.reset_counter = 0
-        self.grid = [[CellState.random(config) for _ in range(size)] for _ in range(size)]
+        self.grid = [[CellState(state=CellState.State.EMPTY, value=0.1) for _ in range(size)] for _ in range(size)]
         self.rules = CityRule.possible_values()
 
         if config == 0:
@@ -159,7 +159,7 @@ class CitySimulation:
             self.infrastructure_development_rate = self.rules[4].infrastructure_development_rate
             self.environmental_impact_rate = self.rules[4].environmental_impact_rate
             self.environmental_conservation_rate = self.rules[4].environmental_conservation_rate
-
+        self.randomize_city()
     def randomize_city(self):
         for i in range(self.size):
             for j in range(self.size):
@@ -281,7 +281,7 @@ class CitySimulation:
                         elif self.random_bool(self.environmental_conservation_rate):
                             next_state = CellState(CellState.State.GREEN_SPACE, self.cell_state_value(CellState.State.GREEN_SPACE))
 
-                new_grid[i][j] = next_state
+                    new_grid[i][j] = next_state
 
         self.grid = new_grid
 
@@ -392,9 +392,19 @@ class CitySimulation:
 
     def count_living_neighbors(self, x, y):
         count = 0
+        for i in range(-1,2):
+            for j in range(-1,2):
+                row = (x + i + self.size) % self.size
+                col = (y +j + self.size) % self.size
+                if not (i == 0 and j ==0) and self.grid[row][col].is_living():
+                    count += 1
+        return count
+
+    def count_industrial_cells(self):
+        count = 0
         for i in range(self.size):
             for j in range(self.size):
-                if self.grid[i][j].is_living():
+                if self.grid[i][j].state == CellState.State.INDUSTRIAL:
                     count += 1
         return count
 
@@ -408,9 +418,21 @@ class CitySimulation:
 
     def count_industrial_neighbors(self, x, y):
         count = 0
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                row = (x + i + self.size) % self.size
+                col = (y + j + self.size) % self.size
+                if not (i == 0 and j == 0) and self.grid[row][col].State == CellState.State.INDUSTRIAL:
+                    count +=1
+        return count
+
+
+    def count_residential_cells(self):
+        count = 0
         for i in range(self.size):
             for j in range(self.size):
-                if self.grid[i][j].state ==
+                if self.grid[i][j].state == CellState.State.RESIDENTIAL:
+                    count += 1
         return count
 
     def count_residential_cells_state(self):
@@ -439,6 +461,15 @@ class CitySimulation:
                     count += self.grid[i][j].value
         return count
 
+
+    def count_commercial_cells(self):
+        count = 0
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.grid[i][j].state == CellState.State.COMMERCIAL:
+                    count += 1
+        return count
+
     def count_commercial_neighbors(self, x, y):
         count = 0
         for i in range(-1, 2):
@@ -455,6 +486,14 @@ class CitySimulation:
             for j in range(self.size):
                 if self.grid[i][j].state == CellState.State.GREEN_SPACE:
                     count += self.grid[i][j].value
+        return count
+
+    def count_green_cells(self):
+        count = 0
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.grid[i][j].state == CellState.State.GREEN_SPACE:
+                    count += 1
         return count
 
     def count_green_neighbors(self, x, y):
@@ -475,10 +514,10 @@ class CitySimulation:
         return total
 
     def print_city(self, file_path, generation):
-        residential_count = self.count_residential_cells_state()
-        commercial_count = self.count_commercial_cells_state()
-        industrial_count = self.count_industrial_cells_state()
-        green_space_count = self.count_green_cells_state()
+        residential_count = self.count_residential_cells()
+        commercial_count = self.count_commercial_cells()
+        industrial_count = self.count_industrial_cells()
+        green_space_count = self.count_green_cells()
         city_state = self.sum_city_state_values()
 
         with open(file_path, "a") as file:
@@ -549,7 +588,6 @@ def main():
     time_ms = int(input("Enter the time between generations (in milliseconds): "))
 
     city = CitySimulation(size, config, True)
-    agent.city.infracstr = action.infractef
     for generation in range(generations):
         print(f"Config {config}:")
         print(f"Generation {generation + 1}:")
