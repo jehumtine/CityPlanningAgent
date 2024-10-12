@@ -16,6 +16,7 @@ def run():
         critic.evaluate()
         learning.adapt_city(agent)
         time.sleep(2)
+        agent.city = CitySimulation(20,1 , True)
 
 if __name__ == "__main__":
         run()

@@ -69,9 +69,8 @@ class Learning:
             agent.city.infrastructure_development_rate
         )
         self.update(current_state, action, reward, next_state)
-
         # Log the action taken
-        logging.info(f'Action taken: {action}, New State: {next_state}, Reward: {reward}')
+        logging.info(f'Action taken: {action}, New State: {next_state}, Reward: {reward}, Q-Table; {self.q_table.items()}')
 
     def calculate_reward(self, agent) -> float:
         # Implement a nuanced reward function based on agent's performance and city state
