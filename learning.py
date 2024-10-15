@@ -1,12 +1,12 @@
 import random
 import logging
 from collections import namedtuple
-
+import json
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Define a named tuple for city state representation
-CityState = namedtuple('CityState', ['population_growth_rate', 'environmental_impact_rate', 'infrastructure_development_rate'])
+CityState = namedtuple('CityState', ['empty_space_count','green_space_count','residential_count','industrial_count','commercial_count','population_growth_rate', 'environmental_impact_rate', 'infrastructure_development_rate','environmental_conservation_rate'])
 
 class Learning:
     def __init__(self,agent ,learning_rate=0.1, exploration_rate=0.2):
@@ -14,6 +14,38 @@ class Learning:
         self.exploration_rate = exploration_rate  # Probability of exploration
         self.q_table = {}  # Initialize Q-table
         self.agent = agent
+
+    def save_q_table(self, file_name='q_table.txt'):
+        """Save the Q-table to a text file, converting CityState to a string."""
+        serializable_q_table = {
+            str(state): actions for state, actions in self.q_table.items()
+        }
+        with open(file_name, 'w') as file:
+            json.dump(serializable_q_table, file)
+        logging.info(f'Q-table saved to {file_name}')
+
+    def load_q_table(self, file_name='q_table.txt'):
+        """Load the Q-table from a text file, converting strings back to CityState."""
+        try:
+            with open(file_name, 'r') as file:
+                serializable_q_table = json.load(file)
+
+            # Convert the strings back to CityState objects
+            self.q_table = {
+                self.string_to_city_state(state_str): actions for state_str, actions in serializable_q_table.items()
+            }
+            logging.info(f'Q-table loaded from {file_name}')
+        except FileNotFoundError:
+            logging.warning(f'File {file_name} not found. Starting with an empty Q-table.')
+
+    def string_to_city_state(self, state_str):
+        """Convert a string representation of CityState back to a CityState object."""
+        # Assuming the string is in the format "CityState(population_growth_rate=0.02, environmental_impact_rate=0.03, ...)"
+        # Extract the values from the string and convert them back to float
+        values = state_str.replace("CityState(", "").replace(")", "").split(", ")
+        values = [float(v.split('=')[1]) for v in values]
+
+        return CityState(*values)
 
     def update(self, state, action, reward, next_state):
         # Basic Q-learning update rule
@@ -34,7 +66,7 @@ class Learning:
             return random.choice(["increase_growth", "reduce_impact", "improve_infrastructure", "decrease_pollution"])
         
         # Select the best action for a given state
-        if state not in self.q_table or not self.q_table[state]:  # Don't change this line
+        if state not in self.q_table or not self.q_table[state]:
             return "default_action"  # Default action if no Q-values exist
         
         return max(self.q_table[state], key=self.q_table[state].get)
@@ -42,9 +74,15 @@ class Learning:
     def adapt_city(self, agent):
         # Adapt the city's parameters based on the agent's score and current state
         current_state = CityState(
+            agent.city.count_empty_cells(),
+            agent.city.count_green_cells(),
+            agent.city.count_residential_cells(),
+            agent.city.count_industrial_cells(),
+            agent.city.count_commercial_cells(),
             agent.city.population_growth_rate,
             agent.city.environmental_impact_rate,
-            agent.city.infrastructure_development_rate  # Assuming infrastructure development rate may not be initialized
+            agent.city.infrastructure_development_rate,
+            agent.city.environmental_conservation_rate
         )
         
         action = self.select_action(current_state)  # Action based on the parameters pushed
@@ -63,15 +101,26 @@ class Learning:
             agent.city.environmental_impact_rate -= 0.02  #  adjustment
         
         # Update Q-table with the current state, action taken, reward received, and the new state
-        next_state = CityState(
+        next_state =  CityState(
+            agent.city.count_empty_cells(),
+            agent.city.count_green_cells(),
+            agent.city.count_residential_cells(),
+            agent.city.count_industrial_cells(),
+            agent.city.count_commercial_cells(),
             agent.city.population_growth_rate,
             agent.city.environmental_impact_rate,
-            agent.city.infrastructure_development_rate
+            agent.city.infrastructure_development_rate,
+            agent.city.environmental_conservation_rate
         )
+
         self.update(current_state, action, reward, next_state)
         # Log the action taken
         logging.info(f'Action taken: {action}, New State: {next_state}, Reward: {reward}, Q-Table; {self.q_table.items()}')
 
+    def convert_to_tuple(self,data):
+        if isinstance(data, list):
+            return tuple(self.convert_to_tuple(item) for item in data)
+        return data
     def calculate_reward(self, agent) -> float:
         # Implement a nuanced reward function based on agent's performance and city state
         # This is a placeholder example; adjust as needed

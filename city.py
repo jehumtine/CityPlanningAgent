@@ -47,11 +47,11 @@ class CityRule:
 
 class CellState:
     class State(str):
-        EMPTY = "x️"
-        RESIDENTIAL = "🏠"
-        COMMERCIAL = "🛍️"
-        INDUSTRIAL = "🏭"
-        GREEN_SPACE = "🟧"
+        EMPTY = "E"
+        RESIDENTIAL = "R"
+        COMMERCIAL = "C"
+        INDUSTRIAL = "I"
+        GREEN_SPACE = "G"
 
     def __init__(self, state, value):
         self.state = state
@@ -125,9 +125,8 @@ class CellState:
                 return CellState(CellState.State.GREEN_SPACE, 0.1)
 
 class CitySimulation:
-    def __init__(self, size, config, explore):
+    def __init__(self, size, config):
         self.size = size
-        self.explore = explore
         self.config = config
         self.city_state = 0.0
         self.reset_counter = 0
@@ -171,16 +170,16 @@ class CitySimulation:
 
         if residential_count > max_count:
             max_count = residential_count
-            max_cell_type = "🏠"
+            max_cell_type = "R"
         if commercial_count > max_count:
             max_count = commercial_count
-            max_cell_type = "🛍️"
+            max_cell_type = "C"
         if industrial_count > max_count:
             max_count = industrial_count
-            max_cell_type = "🏭"
+            max_cell_type = "I"
         if green_space_count > max_count:
             max_count = green_space_count
-            max_cell_type = "🟧"
+            max_cell_type = "G"
 
         return max_cell_type
 
@@ -190,16 +189,16 @@ class CitySimulation:
 
         if residential_count < min_count:
             min_count = residential_count
-            min_cell_type = "🏠"
+            min_cell_type = "R"
         if commercial_count < min_count:
             min_count = commercial_count
-            min_cell_type = "🛍️"
+            min_cell_type = "C"
         if industrial_count < min_count:
             min_count = industrial_count
-            min_cell_type = "🏭"
+            min_cell_type = "I"
         if green_space_count < min_count:
             min_count = green_space_count
-            min_cell_type = "🟧"
+            min_cell_type = "G"
 
         return min_cell_type
 
@@ -319,13 +318,13 @@ class CitySimulation:
                 self.reset_counter = 0
 
     def cell_type_val(self, symbol):
-        if symbol == "🏠":
+        if symbol == "R":
             return CellState.State.RESIDENTIAL
-        elif symbol == "🛍️":
+        elif symbol == "C️":
             return CellState.State.COMMERCIAL
-        elif symbol == "🏭":
+        elif symbol == "I":
             return CellState.State.INDUSTRIAL
-        elif symbol == "🟧":
+        elif symbol == "G":
             return CellState.State.GREEN_SPACE
         else:
             return CellState.State.EMPTY
@@ -408,6 +407,14 @@ class CitySimulation:
                     count += 1
         return count
 
+    def count_empty_cells(self):
+        count =0
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.grid[i][j].state == CellState.State.EMPTY:
+                    count+=1
+        return count
+
     def count_industrial_cells_state(self):
         count = 0
         for i in range(self.size):
@@ -422,7 +429,7 @@ class CitySimulation:
             for j in range(-1, 2):
                 row = (x + i + self.size) % self.size
                 col = (y + j + self.size) % self.size
-                if not (i == 0 and j == 0) and self.grid[row][col].State == CellState.State.INDUSTRIAL:
+                if not (i == 0 and j == 0) and self.grid[row][col].state == CellState.State.INDUSTRIAL:
                     count +=1
         return count
 
