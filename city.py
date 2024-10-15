@@ -526,6 +526,7 @@ class CitySimulation:
         industrial_count = self.count_industrial_cells()
         green_space_count = self.count_green_cells()
         city_state = self.sum_city_state_values()
+        empty_count = self.count_empty_cells()
 
         with open(file_path, "a") as file:
             file.write(f"\nStatistics:\n")
@@ -547,6 +548,7 @@ class CitySimulation:
         print(f"Commercial: {commercial_count}")
         print(f"Industrial: {industrial_count}")
         print(f"Green Space: {green_space_count}")
+        print(f"Empty Space: {empty_count}")
         print(f"POPULATION GROWTH RATE: {self.population_growth_rate}")
         print(f"INFRASTRUCTURE DEVELOPMENT RATE: {self.infrastructure_development_rate}")
         print(f"ENVIRONMENTAL CONSERVATION RATE: {self.environmental_conservation_rate}")
@@ -594,7 +596,7 @@ def main():
     print(choose_time_message)
     time_ms = int(input("Enter the time between generations (in milliseconds): "))
 
-    city = CitySimulation(size, config, True)
+    city = CitySimulation(size, config)
     for generation in range(generations):
         print(f"Config {config}:")
         print(f"Generation {generation + 1}:")

@@ -6,7 +6,7 @@ from critic import Critic
 from learning import Learning
 
 
-def run():
+def train():
     city = CitySimulation(20, 0)
     agent = Agent(city, 0)
     critic = Critic(agent)
@@ -18,5 +18,14 @@ def run():
         agent.city = CitySimulation(20,1)
         learning.save_q_table()
 
+def test():
+    city = CitySimulation(20, 0)
+    agent = Agent(city, 0)
+    agent.load_q_table()
+    critic = Critic(agent)
+    while True:
+        critic.evaluate()
+
+
 if __name__ == "__main__":
-        run()
+        train()
