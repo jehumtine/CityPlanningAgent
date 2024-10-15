@@ -1,5 +1,3 @@
-import time
-
 from agent import Agent
 from city import CitySimulation
 from critic import Critic
@@ -7,7 +5,7 @@ from learning import Learning
 
 
 def train():
-    city = CitySimulation(20, 0)
+    city = CitySimulation(20, 1)
     agent = Agent(city, 0)
     critic = Critic(agent)
     learning = Learning(agent=agent)
@@ -15,7 +13,7 @@ def train():
         critic.evaluate()
         learning.load_q_table()
         learning.adapt_city(agent)
-        agent.city = CitySimulation(20,1)
+
         learning.save_q_table()
 
 def test():

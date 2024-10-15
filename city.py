@@ -283,6 +283,7 @@ class CitySimulation:
                     new_grid[i][j] = next_state
 
         self.grid = new_grid
+        self.city_state = self.sum_city_state_values()
 
         if self.city_state < 0:
             for i in range(self.size):

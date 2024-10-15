@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 CityState = namedtuple('CityState', ['empty_space_count','green_space_count','residential_count','industrial_count','commercial_count','population_growth_rate', 'environmental_impact_rate', 'infrastructure_development_rate','environmental_conservation_rate'])
 
 class Learning:
-    def __init__(self,agent ,learning_rate=0.1, exploration_rate=0.2):
+    def __init__(self,agent ,learning_rate=0.1, exploration_rate=0.4):
         self.learning_rate = learning_rate
         self.exploration_rate = exploration_rate  # Probability of exploration
         self.q_table = {}  # Initialize Q-table
@@ -63,7 +63,7 @@ class Learning:
     def select_action(self, state):
         # Epsilon-greedy action selection/allows exploration
         if random.random() < self.exploration_rate:  # Explore
-            return random.choice(["increase_growth", "reduce_impact", "improve_infrastructure", "decrease_pollution"])
+            return random.choice(["increase_growth", "reduce_impact", "improve_infrastructure", "decrease_pollution","limit_urban_sprawl","optimize_land_use","increase_housing_capacity","promote_commercial_growth","stabilize_growth"])
         
         # Select the best action for a given state
         if state not in self.q_table or not self.q_table[state]:
@@ -90,17 +90,24 @@ class Learning:
 
         # Logic to adjust the city parameters based on the selected action
         if action == "increase_growth":
-            agent.city.population_growth_rate += 0.01  # adjustment
+            agent.city.population_growth_rate += 0.08  # adjustment
         elif action == "reduce_impact":
-            agent.city.environmental_impact_rate -= 0.01  #  adjustment
+            agent.city.environmental_impact_rate -= 0.1  #  adjustment
         elif action == "improve_infrastructure":
             # adjustment
-            agent.city.infrastructure_development_rate += 0.01
+            agent.city.infrastructure_development_rate += 0.08
         elif action == "decrease_pollution":
             #  adjustment
-            agent.city.environmental_impact_rate -= 0.02  #  adjustment
-        
-        # Update Q-table with the current state, action taken, reward received, and the new state
+            agent.city.environmental_impact_rate -= 0.06  #  adjustment
+        elif action == "increase_housing_capacity":
+            agent.city.population_growth_rate += 0.08
+        elif action == "promote_commercial_growth":
+            agent.city.infrastructure_development_rate += 0.1
+        elif action == "stabilize_growth":
+            agent.city.population_growth_rate += 0.09  # adjustment
+            agent.city.infrastructure_development_rate += 0.8
+            agent.city.environmental_impact_rate += 0.06
+            # Update Q-table with the current state, action taken, reward received, and the new state
         next_state =  CityState(
             agent.city.count_empty_cells(),
             agent.city.count_green_cells(),
@@ -115,7 +122,8 @@ class Learning:
 
         self.update(current_state, action, reward, next_state)
         # Log the action taken
-        logging.info(f'Action taken: {action}, New State: {next_state}, Reward: {reward}, Q-Table; {self.q_table.items()}')
+        logging.info(f'Action taken: {action}, New State: {next_state}, Reward: {reward}')#Q-Table; {self.q_table.items()}
+
 
     def convert_to_tuple(self,data):
         if isinstance(data, list):
