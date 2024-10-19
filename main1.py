@@ -5,7 +5,71 @@ from tensorflow.keras.layers import Dense
 import random
 import logging
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 from city import CitySimulation
+import pygame
+import sys
+
+CELL_SIZE = 20
+GRID_SIZE = 20
+FPS = 10
+
+pygame.init()
+
+# Set up display
+width = GRID_SIZE * CELL_SIZE + 400
+height = GRID_SIZE * CELL_SIZE + 150
+screen = pygame.display.set_mode((width, height))
+pygame.display.set_caption("City Evolution Simulation")
+colors = {
+    'E': (255, 255, 255),  # White for Empty
+    'R': (0, 255, 0),      # Green for Residential
+    'C': (0, 0, 255),      # Blue for Commercial
+    'I': (255, 0, 0),      # Red for Industrial
+    'G': (0, 255, 128)     # Light Green for Green Space
+}
+font = pygame.font.Font(None, 24)
+def draw_statistics(city):
+    # Draw statistics on the right side of the screen
+    stats_x = GRID_SIZE * CELL_SIZE + 10
+    stats_y = 10
+    # Create statistics text
+    stats = [
+        f"Generation: {city.generation_count}",
+        f"Residential: {city.count_residential_cells()}",
+        f"Commercial: {city.count_commercial_cells()}",
+        f"Industrial: {city.count_industrial_cells()}",
+        f"Green Space: {city.count_green_cells()}",
+        f"Population Growth Rate: {city.population_growth_rate:.2f}",
+        f"Environmental Impact Rate: {city.environmental_impact_rate:.2f}",
+        f"Environmental Conservation Rate: {city.environmental_impact_rate:.2f}",
+        f"Infrastructure Development Rate: {city.infrastructure_development_rate:.2f}",
+    ]
+    for i, stat in enumerate(stats):
+        text_surface = font.render(stat, True, (255, 255, 255))  # White text
+        screen.blit(text_surface, (stats_x, stats_y + i * 30))
+def draw_grid(city):
+    for i in range(city.size):
+        for j in range(city.size):
+            cell_state = city.grid[i][j].state
+            color = colors[cell_state]
+            pygame.draw.rect(screen, color, (j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+def draw_legend():
+    legend_x = 10  # Start drawing legend from the left
+    legend_y = GRID_SIZE * CELL_SIZE + 10  # Position it below the grid
+    legend_items = [
+        ('Empty', 'E', colors['E']),
+        ('Residential', 'R', colors['R']),
+        ('Commercial', 'C', colors['C']),
+        ('Industrial', 'I', colors['I']),
+        ('Green Space', 'G', colors['G']),
+    ]
+    for i, (label, symbol, color) in enumerate(legend_items):
+        pygame.draw.rect(screen, color, (legend_x, legend_y + i * 30, 20, 20))  # Draw color square
+        text_surface = font.render(f"{label} ({symbol})", True, (255, 255, 255))  # White text
+        screen.blit(text_surface, (legend_x + 30, legend_y + i * 30))  # Position text next to square
+
+
 
 class DQN:
     def __init__(self, state_dim, action_dim):
@@ -117,12 +181,22 @@ def plot_metrics(agent, dqn):
     # Plot rewards over time
     plt.figure(figsize=(12, 6))
 
+    rewards = np.array(dqn.rewards)
+    success_count = np.sum(rewards > 80)
+    total_attempts = len(rewards)
+    success_rate = success_count/total_attempts if total_attempts >0 else 0
+
     # Plot rewards
     plt.subplot(1, 2, 1)
     plt.plot(dqn.rewards)
     plt.title('Rewards over Time')
     plt.xlabel('Generation')
     plt.ylabel('Reward')
+
+    # Display success rate in the plot
+    plt.text(0.5, 0.9, f'Success Rate: {success_rate:.2%}',
+             horizontalalignment='center', verticalalignment='center',
+             transform=plt.gca().transAxes, fontsize=10, color='black')
 
     # Plot Q-values
     plt.subplot(1, 2, 2)
@@ -148,11 +222,24 @@ def plot_metrics(agent, dqn):
 
 
 def plot_city(city):
-    city_grid = city.grid  # Assuming city has a method to get the grid layout
+    # Create a color map for different cell types
+    color_map = {
+        'E': [1, 1, 1],  # White for Empty
+        'R': [0, 1, 0],  # Green for Residential
+        'C': [0, 0, 1],  # Blue for Commercial
+        'I': [1, 0, 0],  # Red for Industrial
+        'G': [0, 1, 0.5] # Light Green for Green Space
+    }
 
-    plt.imshow(city_grid, cmap='Blues')  # Visualize the grid as a heatmap
+    grid_colors = np.zeros((city.size, city.size, 3))
+    for i in range(city.size):
+        for j in range(city.size):
+            cell_state = city.grid[i][j].state
+            grid_colors[i, j] = color_map[cell_state]
+
+    plt.imshow(grid_colors, interpolation='nearest')
     plt.title("City State Visualization")
-    plt.colorbar(label="Cell Value")
+    plt.axis('off')  # Hide the axis
     plt.show()
 
 def main():
@@ -160,7 +247,17 @@ def main():
     dqn = DQN(9, 7)  # State has 9 dimensions, 7 actions
     agent = Agent(city, dqn)
 
+    # Prepare for animation
+    fig, ax = plt.subplots()
+    img = ax.imshow(np.zeros((city.size, city.size, 3)), interpolation='nearest')
+    plt.axis('off')  # Hide the axis
+    frames = [] # Store the city states for animation
+    clock = pygame.time.Clock()
+    running = True
     for generation in range(1000):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
         state = agent.get_state()
         action = agent.act()
         reward = agent.calculate_reward()
@@ -171,10 +268,45 @@ def main():
         dqn.remember(state, action, reward, next_state, done)
         dqn.replay(32)
         dqn.decay_epsilon()
-
+        screen.fill((0, 0, 0))
+        draw_grid(city)
+        draw_statistics(city)
+        draw_legend()
+        pygame.display.flip()
         city.evolve()
+        clock.tick(FPS)
+        # Store the current state for animation
+        frames.append(city)
 
+    #ani = FuncAnimation(fig, update, frames=frames, fargs=(frames, img), interval=500)
+    #plt.show()
+    success_rate = np.sum(np.array(dqn.rewards) > 80) / len(dqn.rewards)
+    # Calculate cumulative success rate
+    cumulative_success_rate = np.cumsum(np.array(dqn.rewards) > 80) / np.arange(1, len(dqn.rewards) + 1)
+    # Calculate average score above 80
+    average_score_above_10 = np.mean(np.array(dqn.rewards)[np.array(dqn.rewards) > 80])
+    # Calculate standard deviation of scores above 80
+    std_dev_scores_above_10 = np.std(np.array(dqn.rewards)[np.array(dqn.rewards) > 80])
     plot_metrics(agent, dqn)
+
+
+def update(city, frames,img ):
+    color_map = {
+        'E': [1, 1, 1],  # White for Empty
+        'R': [0, 1, 0],  # Green for Residential
+        'C': [0, 0, 1],  # Blue for Commercial
+        'I': [1, 0, 0],  # Red for Industrial
+        'G': [0, 1, 0.5]  # Light Green for Green Space
+    }
+
+    grid_colors = np.zeros((frames.size, frames.size, 3))
+    for i in range(frames.size):
+        for j in range(frames.size):
+            cell_state = frames.grid[i][j].state
+            grid_colors[i, j] = color_map[cell_state]
+
+    img.set_array(grid_colors)
+    return img,
 
 if __name__ == "__main__":
     main()

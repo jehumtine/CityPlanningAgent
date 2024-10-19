@@ -130,6 +130,7 @@ class CitySimulation:
         self.config = config
         self.city_state = 0.0
         self.reset_counter = 0
+        self.generation_count = 0
         self.grid = [[CellState(state=CellState.State.EMPTY, value=0.1) for _ in range(size)] for _ in range(size)]
         self.rules = CityRule.possible_values()
 
@@ -229,7 +230,7 @@ class CitySimulation:
 
         max_cell = self.find_max_cell_type(residential_count, commercial_count, industrial_count, green_space_count)
         min_cell = self.find_min_cell_type(residential_count, commercial_count, industrial_count, green_space_count)
-
+        self.generation_count +=1
         self.city_state = self.sum_city_state_values()
 
         if 0 < self.city_state < 70:
