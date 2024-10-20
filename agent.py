@@ -1,52 +1,86 @@
-import logging
-import json
-
-from learning import CityState
+import numpy as np
 
 
 class Agent:
-    def __init__(self, city, score=0):
-        """
-        Initialize the Agent with a city and a score.
-        Args:
-            city (CitySimulation): The city the agent will work with.
-            score (float): The agent's score. Defaults to 0.
-        """
+    """Agent that interacts with the city simulation using a DQN.
+
+    Attributes:
+        city (CitySimulation): The city simulation object.
+        dqn (DQN): The DQN model used by the agent.
+        high_score_count (int): Count of high scores achieved.
+    """
+
+    def __init__(self, city, dqn):
         self.city = city
-        self.score = score
-        self.test = False
-        self.q_table = {}
+        self.dqn = dqn
+        self.high_score_count = 0
 
+    def act(self):
+        """Choose an action based on the current state using epsilon-greedy policy.
 
-    def load_q_table(self, file_name='q_table.txt'):
-        """Load the Q-table from a text file, converting strings back to CityState."""
-        try:
-            with open(file_name, 'r') as file:
-                serializable_q_table = json.load(file)
+        Args:
+            state (np.array): The current state.
 
-            # Convert the strings back to CityState objects
-            self.q_table = {
-                self.string_to_city_state(state_str): actions for state_str, actions in serializable_q_table.items()
-            }
-            logging.info(f'Q-table loaded from {file_name}')
-        except FileNotFoundError:
-            logging.warning(f'File {file_name} not found. Starting with an empty Q-table.')
-
-    def string_to_city_state(self, state_str):
-        """Convert a string representation of CityState back to a CityState object."""
-        # Assuming the string is in the format "CityState(population_growth_rate=0.02, environmental_impact_rate=0.03, ...)"
-        # Extract the values from the string and convert them back to float
-        values = state_str.replace("CityState(", "").replace(")", "").split(", ")
-        values = [float(v.split('=')[1]) for v in values]
-
-        return CityState(*values)
-
-
-    def tweak_city(self):
+        Returns:
+            int: The chosen action.
         """
-        Modify the city configuration.
-        This is where the agent can make changes to the city (e.g., adjust growth rates).
+        state = self.get_state()
+        action = self.dqn.act(state)
+        self.adapt_city(action)
+        return action
+
+    def get_state(self):
+        """Get the current state representation of the city.
+
+        Returns:
+            np.array: The state as a 1D array.
         """
-        # Example: Adjust the city's development rate
-        self.city.infrastructure_development_rate += 0.1
-        print(f"City's development rate increased to {self.city.infrastructure_development_rate}")
+        return np.array(
+            [
+                self.city.count_empty_cells(),
+                self.city.count_green_cells(),
+                self.city.count_residential_cells(),
+                self.city.count_industrial_cells(),
+                self.city.count_commercial_cells(),
+                self.city.population_growth_rate,
+                self.city.environmental_impact_rate,
+                self.city.infrastructure_development_rate,
+                self.city.environmental_conservation_rate,
+            ]
+        ).reshape(1, -1)
+
+    def adapt_city(self, action):
+        """Adapt the city metrics based on the chosen action.
+
+        Args:
+            action (int): The action taken by the agent.
+        """
+        if action == 0:  # increase_growth
+            self.city.population_growth_rate += 0.08
+        elif action == 1:  # reduce_impact
+            self.city.environmental_impact_rate -= 0.1
+        elif action == 2:  # improve_infrastructure
+            self.city.infrastructure_development_rate += 0.08
+        elif action == 3:  # decrease_pollution
+            self.city.environmental_impact_rate -= 0.06
+        elif action == 4:  # increase_housing_capacity
+            self.city.population_growth_rate += 0.08
+        elif action == 5:  # promote_commercial_growth
+            self.city.infrastructure_development_rate += 0.1
+        elif action == 6:  # stabilize_growth
+            self.city.population_growth_rate += 0.09
+            self.city.infrastructure_development_rate += 0.8
+            self.city.environmental_impact_rate += 0.06
+
+    def calculate_reward(self):
+        """Calculate the reward based on the current state of the city.
+
+        Returns:
+            float: The calculated reward.
+        """
+        city_value = self.city.sum_city_state_values()
+        score = 100 - (abs(city_value - 50) / 50) * 100
+        final_score = max(0, min(score, 100))
+        if final_score > 90:
+            self.high_score_count += 1
+        return final_score

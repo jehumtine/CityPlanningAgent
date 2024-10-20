@@ -1,141 +1,105 @@
 import random
-import logging
-from collections import namedtuple
-import json
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Define a named tuple for city state representation
-CityState = namedtuple('CityState', ['empty_space_count','green_space_count','residential_count','industrial_count','commercial_count','population_growth_rate', 'environmental_impact_rate', 'infrastructure_development_rate','environmental_conservation_rate'])
-
-class Learning:
-    def __init__(self,agent ,learning_rate=0.1, exploration_rate=0.4):
-        self.learning_rate = learning_rate
-        self.exploration_rate = exploration_rate  # Probability of exploration
-        self.q_table = {}  # Initialize Q-table
-        self.agent = agent
-
-    def save_q_table(self, file_name='q_table.txt'):
-        """Save the Q-table to a text file, converting CityState to a string."""
-        serializable_q_table = {
-            str(state): actions for state, actions in self.q_table.items()
-        }
-        with open(file_name, 'w') as file:
-            json.dump(serializable_q_table, file)
-        logging.info(f'Q-table saved to {file_name}')
-
-    def load_q_table(self, file_name='q_table.txt'):
-        """Load the Q-table from a text file, converting strings back to CityState."""
-        try:
-            with open(file_name, 'r') as file:
-                serializable_q_table = json.load(file)
-
-            # Convert the strings back to CityState objects
-            self.q_table = {
-                self.string_to_city_state(state_str): actions for state_str, actions in serializable_q_table.items()
-            }
-            logging.info(f'Q-table loaded from {file_name}')
-        except FileNotFoundError:
-            logging.warning(f'File {file_name} not found. Starting with an empty Q-table.')
-
-    def string_to_city_state(self, state_str):
-        """Convert a string representation of CityState back to a CityState object."""
-        # Assuming the string is in the format "CityState(population_growth_rate=0.02, environmental_impact_rate=0.03, ...)"
-        # Extract the values from the string and convert them back to float
-        values = state_str.replace("CityState(", "").replace(")", "").split(", ")
-        values = [float(v.split('=')[1]) for v in values]
-
-        return CityState(*values)
-
-    def update(self, state, action, reward, next_state):
-        # Basic Q-learning update rule
-        if state not in self.q_table:
-            self.q_table[state] = {}
-        if action not in self.q_table[state]:
-            self.q_table[state][action] = 0
-
-        # Get the maximum Q-value for the next state
-        best_next_action = max(self.q_table.get(next_state, {}).values(), default=0)
-
-        # Update the Q-value using the learning rule
-        self.q_table[state][action] += self.learning_rate * (reward + best_next_action - self.q_table[state][action])
-
-    def select_action(self, state):
-        # Epsilon-greedy action selection/allows exploration
-        if random.random() < self.exploration_rate:  # Explore
-            return random.choice(["increase_growth", "reduce_impact", "improve_infrastructure", "decrease_pollution","limit_urban_sprawl","optimize_land_use","increase_housing_capacity","promote_commercial_growth","stabilize_growth"])
-        
-        # Select the best action for a given state
-        if state not in self.q_table or not self.q_table[state]:
-            return "default_action"  # Default action if no Q-values exist
-        
-        return max(self.q_table[state], key=self.q_table[state].get)
-
-    def adapt_city(self, agent):
-        # Adapt the city's parameters based on the agent's score and current state
-        current_state = CityState(
-            agent.city.count_empty_cells(),
-            agent.city.count_green_cells(),
-            agent.city.count_residential_cells(),
-            agent.city.count_industrial_cells(),
-            agent.city.count_commercial_cells(),
-            agent.city.population_growth_rate,
-            agent.city.environmental_impact_rate,
-            agent.city.infrastructure_development_rate,
-            agent.city.environmental_conservation_rate
-        )
-        
-        action = self.select_action(current_state)  # Action based on the parameters pushed
-        reward = self.calculate_reward(agent)  # Get the score from the critic
-
-        # Logic to adjust the city parameters based on the selected action
-        if action == "increase_growth":
-            agent.city.population_growth_rate += 0.08  # adjustment
-        elif action == "reduce_impact":
-            agent.city.environmental_impact_rate -= 0.1  #  adjustment
-        elif action == "improve_infrastructure":
-            # adjustment
-            agent.city.infrastructure_development_rate += 0.08
-        elif action == "decrease_pollution":
-            #  adjustment
-            agent.city.environmental_impact_rate -= 0.06  #  adjustment
-        elif action == "increase_housing_capacity":
-            agent.city.population_growth_rate += 0.08
-        elif action == "promote_commercial_growth":
-            agent.city.infrastructure_development_rate += 0.1
-        elif action == "stabilize_growth":
-            agent.city.population_growth_rate += 0.09  # adjustment
-            agent.city.infrastructure_development_rate += 0.8
-            agent.city.environmental_impact_rate += 0.06
-            # Update Q-table with the current state, action taken, reward received, and the new state
-        next_state =  CityState(
-            agent.city.count_empty_cells(),
-            agent.city.count_green_cells(),
-            agent.city.count_residential_cells(),
-            agent.city.count_industrial_cells(),
-            agent.city.count_commercial_cells(),
-            agent.city.population_growth_rate,
-            agent.city.environmental_impact_rate,
-            agent.city.infrastructure_development_rate,
-            agent.city.environmental_conservation_rate
-        )
-
-        self.update(current_state, action, reward, next_state)
-        # Log the action taken
-        logging.info(f'Action taken: {action}, New State: {next_state}, Reward: {reward}')#Q-Table; {self.q_table.items()}
+import numpy as np
+from keras.src.layers import Dense
+from keras.src.models import Sequential
 
 
-    def convert_to_tuple(self,data):
-        if isinstance(data, list):
-            return tuple(self.convert_to_tuple(item) for item in data)
-        return data
-    def calculate_reward(self, agent) -> float:
-        # Implement a nuanced reward function based on agent's performance and city state
-        # This is a placeholder example; adjust as needed
-        return agent.score  # For now, use the score from the critic as the reward
+class DQN:
+    """Deep Q-Learning model for the agent.
 
-    def select_new_parameter(self, current_value):
-        # Logic to determine a new parameter value based on Q-learning or another strategy
-        return current_value + (self.learning_rate * (1 - current_value))  # Example update
+    Attributes:
+        state_dim (int): The dimension of the state space.
+        action_dim (int): The dimension of the action space.
+        memory (list): Memory for storing experiences.
+        gamma (float): Discount factor for future rewards.
+        epsilon (float): Exploration rate for epsilon-greedy action selection.
+        epsilon_min (float): Minimum exploration rate.
+        epsilon_decay (float): Decay rate for exploration.
+        model (Sequential): The neural network model for Q-value prediction.
+        target_model (Sequential): The target model for stability in training.
+    """
 
+    def __init__(self, state_dim, action_dim):
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.memory = []
+        self.gamma = 0.99
+        self.epsilon = 1.0
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.995
+        self.model = self.create_model()
+        self.target_model = self.create_model()
+        self.update_target_model()
+        self.rewards = []
+        self.actions_taken = []
+        self.q_values = []
 
+    def create_model(self):
+        """Create and compile the neural network model.
+
+        Returns:
+            Sequential: The compiled Keras model.
+        """
+        model = Sequential()
+        model.add(Dense(64, activation="relu", input_dim=self.state_dim))
+        model.add(Dense(64, activation="relu"))
+        model.add(Dense(self.action_dim))
+        model.compile(loss="mse", optimizer="adam")
+        return model
+
+    def update_target_model(self):
+        """Update the target model with weights from the primary model."""
+        self.target_model.set_weights(self.model.get_weights())
+
+    def remember(self, state, action, reward, next_state, done):
+        """Store the experience in memory.
+
+        Args:
+            state (np.array): The current state.
+            action (int): The action taken.
+            reward (float): The reward received.
+            next_state (np.array): The next state after action.
+            done (bool): Whether the episode is finished.
+        """
+        self.memory.append((state, action, reward, next_state, done))
+        self.rewards.append(reward)
+        self.actions_taken.append(action)
+
+    def replay(self, batch_size):
+        """Train the model using a batch of experiences from memory.
+
+        Args:
+            batch_size (int): Number of experiences to sample from memory.
+        """
+        if len(self.memory) < batch_size:
+            return
+        minibatch = random.sample(self.memory, batch_size)
+        for state, action, reward, next_state, done in minibatch:
+            target = reward
+            if not done:
+                target = reward + self.gamma * np.amax(
+                    self.target_model.predict(next_state)[0]
+                )
+            target_f = self.model.predict(state)
+            self.q_values.append(np.max(target_f))
+            target_f[0][action] = target
+            self.model.fit(state, target_f, epochs=1, verbose=0)
+
+    def act(self, state):
+        """Choose an action based on the current state using epsilon-greedy policy.
+
+        Args:
+            state (np.array): The current state.
+
+        Returns:
+            int: The chosen action.
+        """
+        if np.random.rand() <= self.epsilon:
+            return np.random.choice(self.action_dim)
+        act_values = self.model.predict(state)
+        return np.argmax(act_values[0])
+
+    def decay_epsilon(self):
+        """Decay the exploration rate to reduce exploration over time."""
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
