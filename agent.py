@@ -18,6 +18,7 @@ class Agent:
         self.q_table = {}
 
 
+    # the function responsible for loading the q_table
     def load_q_table(self, file_name='q_table.txt'):
         """Load the Q-table from a text file, converting strings back to CityState."""
         try:
@@ -32,6 +33,7 @@ class Agent:
         except FileNotFoundError:
             logging.warning(f'File {file_name} not found. Starting with an empty Q-table.')
 
+    # function responsible for converting the string to the city state
     def string_to_city_state(self, state_str):
         """Convert a string representation of CityState back to a CityState object."""
         # Assuming the string is in the format "CityState(population_growth_rate=0.02, environmental_impact_rate=0.03, ...)"
@@ -42,6 +44,7 @@ class Agent:
         return CityState(*values)
 
 
+    # self adjustment
     def tweak_city(self):
         """
         Modify the city configuration.
