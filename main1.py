@@ -5,19 +5,16 @@ import tensorflow as tf
 from keras.src.layers import Dense
 from keras.src.models import Sequential
 import random
-import logging
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+from pygame.examples.sprite_texture import running, clock
+
 from city import CitySimulation
 import pygame
-import sys
 
 CELL_SIZE = 20
 GRID_SIZE = 20
 FPS = 10
-
 pygame.init()
-
 # Set up display
 width = GRID_SIZE * CELL_SIZE + 400
 height = GRID_SIZE * CELL_SIZE + 150
@@ -31,7 +28,8 @@ colors = {
     "G": (0, 255, 128),  # Light Green for Green Space
 }
 font = pygame.font.Font(None, 24)
-
+TRAINING_MODE = 'train'
+TESTING_MODE = 'test'
 
 def draw_statistics(city):
     """Draw statistics on the right side of the screen.
@@ -294,7 +292,7 @@ def plot_metrics(agent, dqn):
     plt.figure(figsize=(12, 6))
 
     rewards = np.array(dqn.rewards)
-    success_count = np.sum(rewards > 80)
+    success_count = np.sum(rewards > 70)
     total_attempts = len(rewards)
     success_rate = success_count / total_attempts if total_attempts > 0 else 0
 
@@ -316,18 +314,10 @@ def plot_metrics(agent, dqn):
         fontsize=10,
         color="black",
     )
-
-    # Plot Q-values
-    plt.subplot(1, 2, 2)
-    plt.plot(dqn.q_values)
-    plt.title("Q-values over Time")
-    plt.xlabel("Generation")
-    plt.ylabel("Q-value")
-
-    plt.tight_layout()
+    plt.savefig("Rewards Over Time.png")  # Saves as a PNG file
     plt.show()
-    plt.savefig("Q Values Over Time.png")  # Saves as a PNG file
-    print("Plot saved as 'Q Values Over Time.png'")
+
+
 
     # Plot actions taken
     plt.figure(figsize=(12, 6))
@@ -335,8 +325,8 @@ def plot_metrics(agent, dqn):
     plt.title("Distribution of Actions Taken")
     plt.xlabel("Action")
     plt.ylabel("Frequency")
-    plt.show()
     plt.savefig("Distribution Of Actions Taken.png")  # Saves as a PNG file
+    plt.show()
     print("Plot saved as 'distribution_of_actions_taken.png'")
 
 
@@ -367,57 +357,72 @@ def plot_city(city):
     plt.show()
 
 
-def main():
+def main(mode= TRAINING_MODE):
     """Main function to run the city evolution simulation.
     Initializes the city, agent, and starts the simulation loop.
     """
     city = CitySimulation(20, 1)
     dqn = DQN(9, 7)  # State has 9 dimensions, 7 actions
     agent = Agent(city, dqn)
+    paused = False
+    if mode == TRAINING_MODE:
+        clock = pygame.time.Clock()
+        running = True
+        for generation in range(20):
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
 
-    # Prepare for animation
-    fig, ax = plt.subplots()
-    img = ax.imshow(np.zeros((city.size, city.size, 3)), interpolation="nearest")
-    plt.axis("off")  # Hide the axis
-    frames = []  # Store the city states for animation
-    clock = pygame.time.Clock()
-    running = True
-    for generation in range(1000):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-        state = agent.get_state()
-        action = agent.act()
-        reward = agent.calculate_reward()
-        next_state = agent.get_state()
-        print(f"Agent Score :{reward}")
-        done = False
+            state = agent.get_state()
+            action = agent.act()
+            reward = agent.calculate_reward()
+            next_state = agent.get_state()
+            print(f"Agent Score :{reward}")
+            done = False
 
-        dqn.remember(state, action, reward, next_state, done)
-        dqn.replay(32)
-        dqn.decay_epsilon()
-        screen.fill((0, 0, 0))
-        draw_grid(city)
-        draw_statistics(city)
-        draw_legend()
-        pygame.display.flip()
-        city.evolve()
-        clock.tick(FPS)
-        # Store the current state for animation
-        frames.append(city)
+            dqn.remember(state, action, reward, next_state, done)
+            dqn.replay(32)
+            dqn.decay_epsilon()
+            screen.fill((0, 0, 0))
+            draw_grid(city)
+            draw_statistics(city)
+            draw_legend()
+            pygame.display.flip()
+            city.evolve()
+            clock.tick(FPS)
+        dqn.model.save('city_planning_model.keras')  # Save the trained model
+        plot_metrics(agent,dqn)
 
-    # ani = FuncAnimation(fig, update, frames=frames, fargs=(frames, img), interval=500)
-    # plt.show()
-    success_rate = np.sum(np.array(dqn.rewards) > 80) / len(dqn.rewards)
-    # Calculate cumulative success rate
-    cumulative_success_rate = np.cumsum(np.array(dqn.rewards) > 80) / np.arange(
-        1, len(dqn.rewards) + 1
-    )
-    # Calculate average score above 80
-    average_score_above_10 = np.mean(np.array(dqn.rewards)[np.array(dqn.rewards) > 80])
-    # Calculate standard deviation of scores above 80
-    std_dev_scores_above_10 = np.std(np.array(dqn.rewards)[np.array(dqn.rewards) > 80])
-    plot_metrics(agent, dqn)
+    elif mode == TESTING_MODE:
+        # Testing Logic
+        dqn.model = tf.keras.models.load_model('city_planning_model.keras')
+        # Run the testing Loop
+        running = True
+        clock = pygame.time.Clock()
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        paused = not paused
+            if not paused:
+                state = agent.get_state()
+                action = agent.act()  # Use the model to predict actions
+                reward = agent.calculate_reward()
+                dqn.rewards.append(reward)
+                dqn.actions_taken.append(action)
+                print(f'Action taken: {action}')
+                print(f'Agent Reward: {reward}')
+                # Update the city state and display
+                screen.fill((0, 0, 0))
+                draw_grid(city)
+                draw_statistics(city)
+                draw_legend()
+                pygame.display.flip()
+                city.evolve()
+                clock.tick(FPS)
+        plot_metrics(agent, dqn)
 
 
 def update(city, frames, img):
@@ -450,4 +455,10 @@ def update(city, frames, img):
 
 
 if __name__ == "__main__":
-    main()
+    mode = input("Enter mode (train/test): ").strip().lower()
+    if mode == 'train':
+        main(mode=TRAINING_MODE)
+    elif mode == 'test':
+        main(mode=TESTING_MODE)
+    else:
+        print("Invalid mode. Please enter 'train' or 'test'.")
