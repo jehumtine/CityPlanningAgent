@@ -1,5 +1,5 @@
-pytest
-jsonschema
 numpy
-tensorflow
 keras
+pygame
+matplotlib
+tensorflow
